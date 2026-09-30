@@ -7,3 +7,4 @@ seaborn
 shap
 shapiq
 openpyxl
+optuna>=3.0

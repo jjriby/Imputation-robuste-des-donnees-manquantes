@@ -1,9 +1,5 @@
 # Imputation robuste des données manquantes : fiabilité par cellule et ensembles crédaux
 
-Code du stage de Master 2 AI2D (Sorbonne Université) « *Imputation robuste des données manquantes : quantification de la fiabilité par imputation multiple et ensembles crédaux* ».
-
-Auteur : Jawher Jriby — encadrement : Louenas Bounia (LIPN), Sébastien Destercke (Heudiasyc, UTC), Juba Agoun (ERIC, Lyon 2) — référent : Thibaut Lust (LIP6).
-
 Le projet étend missForest avec un **critère de fiabilité par cellule** : chaque valeur imputée est conservée ou rejetée selon
 - un critère **SHAP** d'ordre 1 (MisShapForest, seuil `alpha`),
 - un critère **SHAP-IQ / n-SII** d'ordre 2 (interactions, seuil `tau`),

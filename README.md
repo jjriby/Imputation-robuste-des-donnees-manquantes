@@ -6,7 +6,7 @@ Le projet étend missForest avec un **critère de fiabilité par cellule** : cha
 - un critère **crédal** fondé sur le désaccord des arbres de la forêt (Credal-MissForest, seuil `tau_credal`),
 - un critère **NCC** (Naive Credal Classifier, paramètre `s`).
 
-Le réglage du seuil est traité comme un problème **bi-objectif** (erreur d'imputation vs taux de rejet) : front de Pareto par ε-contrainte + Optuna/TPE, puis sélection équitable par dominance de Lorenz et OWA (Rapport, §3.2).
+Le réglage du seuil est traité comme un problème **bi-objectif** (erreur d'imputation vs taux de rejet) : front de Pareto par ε-contrainte + Optuna/TPE, puis sélection équitable par dominance de Lorenz et OWA.
 
 ---
 
@@ -16,7 +16,6 @@ Le réglage du seuil est traité comme un problème **bi-objectif** (erreur d'im
 .
 ├── README.md
 ├── requirements.txt
-├── Rapport.pdf                 # rapport de stage
 ├── resultats.ipynb             # notebook d'exécution (toutes les expériences)
 ├── contrib/                    # package Python (importé par le notebook)
 │   ├── __init__.py             # ré-exporte les fonctions publiques
@@ -61,9 +60,9 @@ export DATA_DIR="/chemin/vers/datasets"
 
 | Fichier | Utilisation principale |
 |---|---|
-| `heart.csv`, `parkinsons.data`, `wine.data` | jeux numériques (Chapitre 4) |
-| `ecoli.data`, `credit_approval.data`, `dermatology.data` | jeux mixtes (Chapitre 4) ; Ecoli à 50 % = exemple de l'Annexe A |
-| `auto_mpg.csv`, `concrete.csv`, `synth_interactions.csv` | critère enrichi n-SII (§4.6) |
+| `heart.csv`, `parkinsons.data`, `wine.data` | jeux numériques (comparaison des méthodes) |
+| `ecoli.data`, `credit_approval.data`, `dermatology.data` | jeux mixtes (comparaison des méthodes) ; Ecoli à 50 % = exemple détaillé de la chaîne multicritère |
+| `auto_mpg.csv`, `concrete.csv`, `synth_interactions.csv` | critère enrichi par les interactions (n-SII, SHAP-IQ) |
 | `adult.csv`, `airfoil.csv`, `boston.csv`, `california_housing.csv`, `synth_salaires.csv` | essais complémentaires |
 
 `load_data_set` applique les règles de lecture propres à certains fichiers (séparateurs, colonnes identifiant) ; `label_encoding` encode les colonnes catégorielles en entiers et renvoie leur liste. Les valeurs manquantes sont injectées au hasard, cellule par cellule (MCAR), par `generate_missing(df, missing_rate)`, qui renvoie aussi les vraies valeurs retirées.
@@ -100,7 +99,7 @@ Les boucles d'expériences sauvegardent l'Excel après chaque (dataset, taux, r�
 
 ---
 
-## Chaîne multicritère (Rapport §3.2, Algorithme 6)
+## Chaîne multicritère
 
 1. **ε-contrainte.** Pour chaque cible de rejet δ ∈ Δ = {0,05 ; … ; 0,95} :
    min_θ E(θ) s.c. |r(θ) − δ| ≤ ε, résolu par une étude Optuna (échantillonneur TPE, budget T essais), la contrainte étant transmise à TPE. θ ∈ [0, 1] pour `tau_credal`, θ ∈ [0, `hi`] pour `alpha`.
@@ -135,7 +134,7 @@ sol, best = owa_heuristique(front, normaliser=True)
 | `tol` | `0.05` | ε de la contrainte \|r − δ\| ≤ ε |
 | `n_trials` | `30` | budget T d'essais Optuna par δ |
 | `n_startup_trials` | `10` | essais aléatoires initiaux de TPE |
-| `n_warm_start` | `3` | θ déjà évalués ré-injectés dans l'étude de chaque δ (`0` = études strictement indépendantes, comme l'Algorithme 6) |
+| `n_warm_start` | `3` | θ déjà évalués ré-injectés dans l'étude de chaque δ (`0` = études strictement indépendantes) |
 | `hi` | `1.0` / `50.0` | borne supérieure de θ (credal / shap) |
 | `log_alpha` | `False` | échelle logarithmique pour `alpha` |
 | `max_iter` | `1` | itérations de l'imputeur à chaque évaluation |
@@ -145,7 +144,7 @@ Sortie : un DataFrame avec une ligne par δ (`delta, reject, NRMSE, tau_credal|a
 
 **Coût.** Au plus |Δ| × T entraînements de forêt par méthode (19 × 30 = 570 avec les valeurs par défaut) ; un cache évite de réentraîner un θ déjà évalué. Sur Ecoli à 50 % (336 lignes, `max_iter=1`), une évaluation prend environ 6 s sur un portable 12 cœurs : compter de l'ordre d'une heure par méthode avec les valeurs par défaut. Pour un premier essai : `n_trials=15, n_startup_trials=5`.
 
-**Plancher de rejet.** Certaines cibles δ basses peuvent être inatteignables (rejet minimal non nul même au seuil le plus permissif, cf. §4.5.3) : elles ressortent avec `feasible=False` et sont écartées par `front_pareto_enveloppe`.
+**Plancher de rejet.** Certaines cibles δ basses peuvent être inatteignables (rejet minimal non nul même au seuil le plus permissif) : elles ressortent avec `feasible=False` et sont écartées par `front_pareto_enveloppe`.
 
 ---
 
@@ -153,16 +152,5 @@ Sortie : un DataFrame avec une ligne par δ (`delta, reject, NRMSE, tau_credal|a
 
 - Le masque de valeurs manquantes est tiré avec `np.random.seed(exp)` (numéro de répétition) dans les expériences, et `seed` dans `pareto_front_min_per_deletion` : toutes les méthodes voient exactement les mêmes tableaux corrompus.
 - Les forêts utilisent 100 arbres et `random_state=42`.
-- Le Chapitre 4 du rapport utilise 10 répétitions par configuration et les taux de 15, 25, 50 et 75 %. Ces valeurs se règlent en tête des cellules 5 et 9 (`missing_rates`, `n_experiments`, `datasets_paths`).
-- Pour reproduire l'exemple de l'Annexe A : `DATASET_CMP = "Ecoli"` et `MISSING_CMP = 0.5` dans la cellule 13.
-
-## Correspondance rapport ↔ code
-
-| Rapport | Code |
-|---|---|
-| §3.1, MisShapForest | `shap_imputation.shap_imputation` |
-| §3.1.2, Credal-MissForest, Algorithmes 4–5 | `credal.credal_reliability`, `credal.credal_imputation` |
-| §3.2.2, ε-contrainte, Algorithme 6 | `multicritere.pareto_front_min_per_deletion`, `front_pareto_enveloppe` |
-| §3.2.3, Lorenz et OWA | `multicritere.lorenz_optimal`, `owa_heuristique` |
-| §3.3, SHAP-IQ, Algorithme 7 | `shap_imputation.shapiq_imputation`, `reliability_from_interactions` |
-| Chapitre 4, protocole et tableaux | `resultats.ipynb`, cellules 5–11 |
+- Les expériences de référence utilisent 10 répétitions par configuration et les taux de 15, 25, 50 et 75 %. Ces valeurs se règlent en tête des cellules 5 et 9 (`missing_rates`, `n_experiments`, `datasets_paths`).
+- Pour l'exemple détaillé de la chaîne multicritère : `DATASET_CMP = "Ecoli"` et `MISSING_CMP = 0.5` dans la cellule 13.
